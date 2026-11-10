@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#d62828">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Promos Hmarket Bruxelles</title>
+<style>
+  :root { --rouge:#d62828; --fond:#fff8f0; --texte:#222; --gris:#6b6b6b; --carte:#fff; }
+  * { box-sizing: border-box; }
+  html { font-size: 20px; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; background:var(--fond); color:var(--texte); line-height:1.35; }
+  header { background:var(--rouge); color:#fff; padding:18px 16px 14px; position:sticky; top:0; z-index:5; box-shadow:0 2px 6px rgba(0,0,0,.25); }
+  header h1 { margin:0; font-size:1.35rem; }
+  header p { margin:4px 0 0; font-size:.9rem; opacity:.95; }
+  main { max-width:640px; margin:0 auto; padding:16px; }
+  .carte { background:var(--carte); border-radius:16px; overflow:hidden; margin:0 0 18px; box-shadow:0 2px 8px rgba(0,0,0,.12); }
+  .carte img { display:block; width:100%; height:auto; background:#eee; }
+  .infos { padding:12px 16px 14px; }
+  .nom { font-size:1.05rem; font-weight:700; margin:0 0 4px; }
+  .prix { font-size:1.9rem; font-weight:800; color:var(--rouge); margin:0; }
+  .prix small { font-size:.8rem; font-weight:600; color:var(--texte); }
+  .detail { color:var(--gris); font-size:.85rem; margin:2px 0; }
+  .dates { display:inline-block; margin-top:8px; padding:4px 10px; border-radius:999px; background:#e8f5e9; color:#1b5e20; font-weight:700; font-size:.85rem; }
+  .dates.bientot { background:#fff3cd; color:#7a5200; }
+  .vide { background:var(--carte); border-radius:16px; padding:24px 18px; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,.12); }
+  .vide h2 { margin:0 0 8px; font-size:1.2rem; }
+  .vide p { margin:6px 0; color:var(--gris); }
+  button.lien { margin-top:14px; font:inherit; font-weight:700; padding:12px 18px; border-radius:12px; border:2px solid var(--rouge); background:#fff; color:var(--rouge); }
+  footer { max-width:640px; margin:0 auto; padding:4px 16px 40px; color:var(--gris); font-size:.75rem; }
+  .perimee { opacity:.55; filter:grayscale(.6); }
+  h2.section { font-size:1rem; color:var(--gris); margin:24px 0 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Promos Hmarket Bruxelles</h1>
+  <p id="sous-titre">Chargement…</p>
+</header>
+<main id="liste"></main>
+<footer id="pied"></footer>
+
+<script>
+(function () {
+  var MOIS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+  function jolie(iso) { var d = iso.split("-"); return parseInt(d[2], 10) + " " + MOIS[parseInt(d[1], 10) - 1]; }
+  function aujourdhui() { var n = new Date(); return n.getFullYear() + "-" + ("0" + (n.getMonth() + 1)).slice(-2) + "-" + ("0" + n.getDate()).slice(-2); }
+  function euros(v) { return v.toFixed(2).replace(".", ",") + " €"; }
+  function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt) e.textContent = txt; return e; }
+
+  function carte(o, perimee) {
+    var c = el("article", "carte" + (perimee ? " perimee" : ""));
+    var img = el("img"); img.src = o.image; img.alt = o.name || "Promo"; img.loading = "lazy"; c.appendChild(img);
+    var i = el("div", "infos");
+    if (o.name) i.appendChild(el("p", "nom", o.name));
+    var p = el("p", "prix", euros(o.price));
+    var sfx = [];
+    if (o.lot) sfx.push("le lot de " + o.lot);
+    if (o.price_suffix) sfx.push(o.price_suffix);
+    if (sfx.length) { var s = el("small", null, " " + sfx.join(" · ")); p.appendChild(s); }
+    i.appendChild(p);
+    var det = [o.qty, o.unit_price, o.origin ? "Origine : " + o.origin : null].filter(Boolean).join(" · ");
+    if (det) i.appendChild(el("p", "detail", det));
+    if (o.date_from && o.date_to) {
+      var restant = (new Date(o.date_to) - new Date(aujourdhui())) / 86400000;
+      var d = el("span", "dates" + (!perimee && restant <= 1 ? " bientot" : ""), "Du " + jolie(o.date_from) + " au " + jolie(o.date_to));
+      i.appendChild(d);
+    }
+    c.appendChild(i);
+    return c;
+  }
+
+  function afficher(data) {
+    var liste = document.getElementById("liste");
+    var today = aujourdhui();
+    var be = data.offers.filter(function (o) { return o.belgium; });
+    var actives = be.filter(function (o) { return !o.date_to || o.date_to >= today; });
+    var finies = be.filter(function (o) { return o.date_to && o.date_to < today; });
+    var maj = new Date(data.generated_at);
+    document.getElementById("sous-titre").textContent = actives.length
+      ? actives.length + " promos en cours"
+      : "Pas de promo en cours pour le moment";
+
+    liste.textContent = "";
+    if (!actives.length) {
+      var v = el("div", "vide");
+      v.appendChild(el("h2", null, "Pas de nouvelle promo pour le moment"));
+      v.appendChild(el("p", null, "Hmarket n'a pas encore publié de nouveau catalogue."));
+      if (data.catalogue_from) v.appendChild(el("p", null, "Dernier catalogue : du " + jolie(data.catalogue_from) + " au " + jolie(data.catalogue_to) + " (terminé)."));
+      v.appendChild(el("p", null, "Cette page se met à jour toute seule dès qu'il y a du nouveau."));
+      if (finies.length) {
+        var b = el("button", "lien", "Revoir les anciennes promos");
+        b.onclick = function () { v.remove(); montrer(finies, true); };
+        v.appendChild(b);
+      }
+      liste.appendChild(v);
+    } else {
+      montrer(actives, false);
+    }
+    function montrer(arr, perimee) {
+      if (perimee) liste.appendChild(el("h2", "section", "Anciennes promos (terminées)"));
+      arr.forEach(function (o) { liste.appendChild(carte(o, perimee)); });
+    }
+    var pied = document.getElementById("pied");
+    pied.textContent = "Offres du catalogue Hmarket valables en Belgique, hors offres boucherie (non valables à Bruxelles). Magasins participants, dans la limite des stocks. Vérifie toujours le prix en magasin. Mis à jour le " + maj.toLocaleDateString("fr-BE") + ".";
+  }
+
+  fetch("promos.json?t=" + Date.now()).then(function (r) { return r.json(); }).then(afficher).catch(function () {
+    document.getElementById("sous-titre").textContent = "Impossible de charger les promos";
+    document.getElementById("liste").appendChild(el("div", "vide", "Pas de connexion Internet. Réessaie plus tard."));
+  });
+
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function () {});
+})();
+</script>
+</body>
+</html>
